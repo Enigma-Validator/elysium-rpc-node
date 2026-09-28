@@ -1,0 +1,38 @@
+services:
+  elysium-node:
+    build:
+      context: .
+      args:
+        NITRO_IMAGE: ${NITRO_IMAGE:-offchainlabs/nitro-node:v3.9.5-66e42c4}
+    image: elysium-rpc-node:local
+    container_name: elysium-node
+    platform: linux/amd64
+    restart: unless-stopped
+    env_file: .env
+    # Nitro flushes its database on shutdown: give it time instead of killing it
+    stop_grace_period: 5m
+    ports:
+      - "${RPC_BIND:-127.0.0.1}:${HTTP_PORT:-8547}:8547"
+      - "${RPC_BIND:-127.0.0.1}:${WS_PORT:-8546}:8546"
+      - "127.0.0.1:${METRICS_PORT:-6070}:6070"
+    volumes:
+      - elysium-data:/home/user/.arbitrum
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          curl -sf -X POST -H 'Content-Type: application/json'
+          --data '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}'
+          http://127.0.0.1:8547 | grep -q result
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5m
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+volumes:
+  elysium-data:
